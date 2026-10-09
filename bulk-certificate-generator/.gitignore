@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# Local configuration
+.env
+
+# Local data
+*.db
+generated_certificates/*
+!generated_certificates/.gitkeep
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store

@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Certificate Generator</title>
+<style>
+  :root {
+    --bg: #f4f6f9;
+    --surface: #ffffff;
+    --surface-2: #f8f9fb;
+    --border: #dde2ea;
+    --text: #1c2430;
+    --muted: #5d6878;
+    --accent: #1f3a5f;
+    --accent-text: #ffffff;
+    --accent-soft: #e6edf6;
+    --gold: #b8860b;
+    --ok: #1e7a46;      --ok-bg: #e3f4ea;
+    --err: #b42318;     --err-bg: #fdecea;
+    --warn: #9a6400;    --warn-bg: #fff4dc;
+    --info: #1d5fa8;    --info-bg: #e5effb;
+    --idle: #5d6878;    --idle-bg: #eceff3;
+    --focus: #3b82f6;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f141b; --surface: #171e27; --surface-2: #1d2530; --border: #2c3644;
+      --text: #e6eaf0; --muted: #98a3b3; --accent: #7fa7d9; --accent-text: #0f141b;
+      --accent-soft: #1f2c3d; --gold: #d9a836;
+      --ok: #5fcf8e; --ok-bg: #16301f; --err: #f2867b; --err-bg: #3a1a17;
+      --warn: #e8b85a; --warn-bg: #352a12; --info: #7db3f0; --info-bg: #162a42;
+      --idle: #98a3b3; --idle-bg: #232c38; --focus: #7db3f0;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f141b; --surface: #171e27; --surface-2: #1d2530; --border: #2c3644;
+    --text: #e6eaf0; --muted: #98a3b3; --accent: #7fa7d9; --accent-text: #0f141b;
+    --accent-soft: #1f2c3d; --gold: #d9a836;
+    --ok: #5fcf8e; --ok-bg: #16301f; --err: #f2867b; --err-bg: #3a1a17;
+    --warn: #e8b85a; --warn-bg: #352a12; --info: #7db3f0; --info-bg: #162a42;
+    --idle: #98a3b3; --idle-bg: #232c38; --focus: #7db3f0;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 14px 16px;
+  }
+  .header-inner { max-width: 1280px; margin: 0 auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .2px; }
+  header h1 span { color: var(--gold); }
+  .health { margin-left: auto; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--idle); }
+  .dot.up { background: var(--ok); } .dot.down { background: var(--err); }
+  header a { color: var(--accent); font-size: 13px; }
+
+  main { max-width: 1280px; margin: 0 auto; padding: 20px 16px 48px; display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 1040px) { main { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); align-items: start; } }
+  .col { display: grid; gap: 20px; min-width: 0; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; min-width: 0; }
+  .card h2 { font-size: 16px; margin: 0 0 14px; display: flex; align-items: center; gap: 8px; }
+  .card h2 .sub { font-weight: 400; color: var(--muted); font-size: 13px; }
+
+  label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  input[type=text], input[type=email], input[type=date], textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px;
+    background: var(--surface); color: var(--text); font: inherit;
+  }
+  textarea { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; min-height: 110px; resize: vertical; }
+  input:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  input.invalid { border-color: var(--err); background: var(--err-bg); }
+  .fields { display: grid; gap: 12px; grid-template-columns: 1fr; margin-bottom: 16px; }
+  @media (min-width: 560px) { .fields { grid-template-columns: 1fr 1fr; } .fields .wide { grid-column: 1 / -1; } }
+  .field-error { color: var(--err); font-size: 12px; margin-top: 3px; }
+
+  button {
+    font: inherit; font-size: 14px; border-radius: 7px; padding: 7px 12px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .55; cursor: not-allowed; }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
+  button.link { border: none; background: none; padding: 2px 4px; color: var(--accent); }
+  button.danger-link { border: none; background: none; padding: 2px 6px; color: var(--muted); font-size: 18px; line-height: 1; }
+  button.danger-link:hover { color: var(--err); }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .toolbar .spacer { flex: 1; }
+  .count { font-size: 13px; color: var(--muted); }
+
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
+  .table-wrap.scroll { max-height: 420px; overflow-y: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 7px 8px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  th { background: var(--surface-2); font-size: 12px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); position: sticky; top: 0; z-index: 1; }
+  tr:last-child td { border-bottom: none; }
+  td.num { color: var(--muted); width: 34px; font-variant-numeric: tabular-nums; }
+  #recipients-table td { padding: 4px 5px; }
+  #recipients-table input { padding: 6px 8px; min-width: 130px; }
+
+  .paste-box { margin-bottom: 10px; display: none; }
+  .paste-box.open { display: block; }
+  .hint { font-size: 12px; color: var(--muted); margin: 4px 0 8px; }
+
+  .submit-row { display: flex; align-items: center; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+  .alert { border-radius: 8px; padding: 10px 12px; font-size: 14px; margin-top: 12px; }
+  .alert.error { background: var(--err-bg); color: var(--err); }
+  .alert.ok { background: var(--ok-bg); color: var(--ok); }
+  .alert.warn { background: var(--warn-bg); color: var(--warn); }
+  .alert ul { margin: 6px 0 0; padding-left: 18px; }
+  .hidden { display: none !important; }
+
+  .badge { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .4px; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .s-PENDING { color: var(--idle); background: var(--idle-bg); }
+  .s-PROCESSING { color: var(--info); background: var(--info-bg); }
+  .s-SUCCESS, .s-COMPLETED { color: var(--ok); background: var(--ok-bg); }
+  .s-FAILED { color: var(--err); background: var(--err-bg); }
+  .s-COMPLETED_WITH_ERRORS { color: var(--warn); background: var(--warn-bg); }
+
+  .track-form { display: flex; gap: 8px; margin-bottom: 14px; }
+  .track-form input { flex: 1; min-width: 0; }
+  .empty { color: var(--muted); font-size: 14px; text-align: center; padding: 26px 8px; }
+
+  .job-head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-bottom: 4px; }
+  .job-head h3 { margin: 0; font-size: 17px; }
+  .job-meta { color: var(--muted); font-size: 13px; margin-bottom: 12px; word-break: break-all; }
+  .progress { height: 12px; background: var(--idle-bg); border-radius: 999px; overflow: hidden; display: flex; }
+  .progress .bar-ok { background: var(--ok); transition: width .4s; }
+  .progress .bar-err { background: var(--err); transition: width .4s; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin: 6px 0 14px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 8px; margin-bottom: 14px; }
+  .stat { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+  .stat .v { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat .k { font-size: 12px; color: var(--muted); }
+  .stat.ok .v { color: var(--ok); } .stat.err .v { color: var(--err); } .stat.info .v { color: var(--info); }
+  .job-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .polling { font-size: 12px; color: var(--muted); }
+  a.download { color: var(--accent); font-weight: 600; text-decoration: none; white-space: nowrap; }
+  a.download:hover { text-decoration: underline; }
+  .err-text { color: var(--err); font-size: 13px; }
+  .email { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+
+  code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <h1>Bulk Certificate <span>Generator</span></h1>
+    <a href="/docs" target="_blank" rel="noopener">API docs</a>
+    <div class="health" title="API health"><span class="dot" id="health-dot"></span><span id="health-text">Checking API…</span></div>
+  </div>
+</header>
+
+<main>
+  <div class="col">
+    <!-- New job -->
+    <section class="card" aria-labelledby="new-job-title">
+      <h2 id="new-job-title">New certificate job</h2>
+      <form id="job-form" novalidate>
+        <div class="fields">
+          <div class="wide">
+            <label for="event_name">Event name</label>
+            <input type="text" id="event_name" placeholder="Python Bootcamp 2026" maxlength="200" required>
+          </div>
+          <div>
+            <label for="organization_name">Organization</label>
+            <input type="text" id="organization_name" placeholder="ABC Technologies" maxlength="200" required>
+          </div>
+          <div>
+            <label for="issue_date">Issue date</label>
+            <input type="date" id="issue_date" required>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <strong>Recipients</strong>
+          <span class="count" id="recipient-count">0</span>
+          <span class="spacer"></span>
+          <button type="button" id="add-row">+ Add row</button>
+          <button type="button" id="toggle-paste">Paste CSV</button>
+          <button type="button" id="upload-csv">Upload CSV</button>
+          <input type="file" id="csv-file" accept=".csv,text/csv,text/plain" class="hidden">
+          <button type="button" class="link" id="load-sample">Sample data</button>
+          <button type="button" class="link" id="clear-rows">Clear</button>
+        </div>
+
+        <div class="paste-box" id="paste-box">
+          <p class="hint">One recipient per line: <code>name,email,course_name</code>. A header row is optional. Columns are matched by name when present.</p>
+          <textarea id="paste-text" placeholder="name,email,course_name&#10;Sai Krishik,krishik@example.com,Python Programming&#10;Rahul Sharma,rahul@example.com,Backend Development"></textarea>
+          <div class="toolbar" style="margin-top:8px">
+            <button type="button" id="import-paste">Add these recipients</button>
+            <span class="hint" id="paste-result"></span>
+          </div>
+        </div>
+
+        <div class="table-wrap scroll">
+          <table id="recipients-table">
+            <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Course</th><th aria-label="Remove"></th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div class="submit-row">
+          <button type="submit" class="primary" id="submit-btn">Generate certificates</button>
+          <span class="hint" id="submit-hint">Up to 500 recipients per job (server default).</span>
+        </div>
+        <div id="form-message" class="alert hidden" role="alert"></div>
+      </form>
+    </section>
+  </div>
+
+  <div class="col">
+    <!-- Job progress -->
+    <section class="card" aria-labelledby="progress-title">
+      <h2 id="progress-title">Job progress</h2>
+      <form class="track-form" id="track-form">
+        <input type="text" id="track-id" placeholder="Paste a job ID to track it" aria-label="Job ID">
+        <button type="submit">Track</button>
+      </form>
+      <div id="job-view"><div class="empty">Submit a job or paste a job ID to see its progress.</div></div>
+    </section>
+  </div>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  // Where the API lives. When FastAPI serves this page (http://127.0.0.1:8000/) it is the same
+  // origin. When the file is opened another way (VS Code Live Server, file://), fall back to the
+  // default local API server. Override with ?api=http://host:port if the API runs elsewhere.
+  const DEFAULT_API = "http://127.0.0.1:8000";
+  let API_BASE = DEFAULT_API;
+  let JOBS_URL = `${API_BASE}/api/v1/certificate-jobs`;
+
+  async function resolveApiBase() {
+    const override = new URLSearchParams(location.search).get("api");
+    if (override) return override.replace(/\/+$/, "");
+    if (location.protocol.startsWith("http")) {
+      try {
+        const response = await fetch("/health", { headers: { Accept: "application/json" } });
+        const body = await response.json();
+        if (response.ok && body?.status === "ok") return "";
+      } catch { /* this server is not the API */ }
+    }
+    return DEFAULT_API;
+  }
+  const FINAL_STATUSES = new Set(["COMPLETED", "COMPLETED_WITH_ERRORS", "FAILED"]);
+  const POLL_MS = 1000;
+
+  const $ = (id) => document.getElementById(id);
+
+  /** Small DOM builder. Text is always set via textContent (no HTML injection). */
+  function el(tag, props = {}, ...children) {
+    const node = document.createElement(tag);
+    for (const [key, value] of Object.entries(props)) {
+      if (value === undefined || value === null) continue;
+      if (key === "class") node.className = value;
+      else if (key === "text") node.textContent = value;
+      else if (key.startsWith("on")) node.addEventListener(key.slice(2), value);
+      else if (key in node) node[key] = value;
+      else node.setAttribute(key, value);
+    }
+    for (const child of children.flat()) {
+      if (child === null || child === undefined || child === false) continue;
+      node.append(child instanceof Node ? child : document.createTextNode(String(child)));
+    }
+    return node;
+  }
+
+  const badge = (status) => el("span", { class: `badge s-${status}`, text: status.replaceAll("_", " ") });
+  const formatTime = (iso) => (iso ? new Date(iso).toLocaleString() : "—");
+  const storage = {
+    get(key) { try { return localStorage.getItem(key); } catch { return null; } },
+    set(key, value) { try { localStorage.setItem(key, value); } catch { /* storage unavailable */ } },
+  };
+
+  async function api(url, options) {
+    let response;
+    try {
+      response = await fetch(url, options);
+    } catch {
+      throw { status: 0, detail: "Cannot reach the API. Is the server running (uvicorn app.main:app)?" };
+    }
+    const body = await response.json().catch(() => null);
+    if (!response.ok) throw { status: response.status, detail: body?.detail ?? response.statusText };
+    return body;
+  }
+
+  // ---------- Health ----------
+  async function checkHealth() {
+    try {
+      await api(`${API_BASE}/health`);
+      $("health-dot").className = "dot up";
+      $("health-text").textContent = "API online";
+    } catch {
+      $("health-dot").className = "dot down";
+      $("health-text").textContent = `API offline (${API_BASE || location.origin})`;
+    }
+  }
+
+  // ---------- Recipients editor ----------
+  const tbody = document.querySelector("#recipients-table tbody");
+
+  function addRecipientRow(data = {}) {
+    const input = (field, type, placeholder) =>
+      el("input", { type, placeholder, value: data[field] ?? "", maxLength: field === "email" ? 320 : 200, "data-field": field, "aria-label": field.replace("_", " ") });
+    const row = el("tr", {},
+      el("td", { class: "num" }),
+      el("td", {}, input("name", "text", "Full name")),
+      el("td", {}, input("email", "email", "name@example.com")),
+      el("td", {}, input("course_name", "text", "Course name")),
+      el("td", {}, el("button", { type: "button", class: "danger-link", title: "Remove", "aria-label": "Remove recipient", text: "×",
+        onclick: () => { row.remove(); if (!tbody.rows.length) addRecipientRow(); renumber(); } })),
+    );
+    row.addEventListener("input", (event) => { event.target.classList.remove("invalid"); renumber(); });
+    tbody.append(row);
+    renumber();
+    return row;
+  }
+
+  function renumber() {
+    [...tbody.rows].forEach((row, index) => { row.cells[0].textContent = index + 1; });
+    const n = readRecipients().length;
+    $("recipient-count").textContent = `${n} recipient${n === 1 ? "" : "s"}`;
+  }
+
+  const rowIsEmpty = (row) => [...row.querySelectorAll("input")].every((input) => !input.value.trim());
+
+  /** Recipients from non-empty rows, with the table row index for error mapping. */
+  function readRecipients() {
+    return [...tbody.rows].filter((row) => !rowIsEmpty(row)).map((row) => {
+      const value = (field) => row.querySelector(`[data-field="${field}"]`).value.trim();
+      return { row, data: { name: value("name"), email: value("email"), course_name: value("course_name") } };
+    });
+  }
+
+  function appendRecipients(list) {
+    if (tbody.rows.length === 1 && rowIsEmpty(tbody.rows[0])) tbody.rows[0].remove();
+    list.forEach((recipient) => addRecipientRow(recipient));
+    renumber();
+  }
+
+  // ---------- CSV import ----------
+  function parseCsv(text) {
+    const rows = [];
+    let row = [], field = "", inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (inQuotes) {
+        if (ch === '"' && text[i + 1] === '"') { field += '"'; i++; }
+        else if (ch === '"') inQuotes = false;
+        else field += ch;
+      } else if (ch === '"') inQuotes = true;
+      else if (ch === "," || ch === "\t" || ch === ";") { row.push(field); field = ""; }
+      else if (ch === "\n" || ch === "\r") {
+        if (ch === "\r" && text[i + 1] === "\n") i++;
+        row.push(field); rows.push(row); row = []; field = "";
+      } else field += ch;
+    }
+    row.push(field); rows.push(row);
+    return rows.map((r) => r.map((c) => c.trim())).filter((r) => r.some(Boolean));
+  }
+
+  function csvToRecipients(text) {
+    const rows = parseCsv(text);
+    if (!rows.length) return [];
+    let columns = { name: 0, email: 1, course_name: 2 };
+    const header = rows[0].map((c) => c.toLowerCase().replace(/[\s-]+/g, "_"));
+    if (header.includes("email")) {
+      const find = (...names) => header.findIndex((h) => names.includes(h));
+      columns = { name: find("name", "full_name", "recipient", "recipient_name"), email: find("email", "email_address"), course_name: find("course_name", "course") };
+      rows.shift();
+    }
+    const pick = (row, index) => (index >= 0 ? row[index] ?? "" : "");
+    return rows.map((row) => ({ name: pick(row, columns.name), email: pick(row, columns.email), course_name: pick(row, columns.course_name) }));
+  }
+
+  function importCsvText(text, source) {
+    const recipients = csvToRecipients(text);
+    appendRecipients(recipients);
+    $("paste-result").textContent = `Added ${recipients.length} recipient${recipients.length === 1 ? "" : "s"} from ${source}.`;
+    return recipients.length;
+  }
+
+  $("add-row").addEventListener("click", () => addRecipientRow().querySelector("input").focus());
+  $("toggle-paste").addEventListener("click", () => $("paste-box").classList.toggle("open"));
+  $("import-paste").addEventListener("click", () => {
+    if (importCsvText($("paste-text").value, "pasted text")) $("paste-text").value = "";
+  });
+  $("upload-csv").addEventListener("click", () => $("csv-file").click());
+  $("csv-file").addEventListener("change", async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    $("paste-box").classList.add("open");
+    importCsvText(await file.text(), file.name);
+    event.target.value = "";
+  });
+  $("clear-rows").addEventListener("click", () => { tbody.replaceChildren(); addRecipientRow(); });
+  $("load-sample").addEventListener("click", () => {
+    if (!$("event_name").value) $("event_name").value = "Python Bootcamp 2026";
+    if (!$("organization_name").value) $("organization_name").value = "ABC Technologies";
+    appendRecipients([
+      { name: "Sai Krishik", email: "krishik@example.com", course_name: "Python Programming" },
+      { name: "Rahul Sharma", email: "rahul@example.com", course_name: "Backend Development" },
+      { name: "Ananya Iyer", email: "ananya@example.com", course_name: "Data Engineering" },
+    ]);
+  });
+
+  // ---------- Submit ----------
+  function showFormMessage(kind, title, items = []) {
+    const box = $("form-message");
+    box.className = `alert ${kind}`;
+    box.replaceChildren(el("strong", { text: title }));
+    if (items.length) box.append(el("ul", {}, items.map((item) => el("li", { text: item }))));
+  }
+
+  function clearFieldErrors() {
+    document.querySelectorAll("#job-form .invalid").forEach((node) => node.classList.remove("invalid"));
+    $("form-message").className = "alert hidden";
+  }
+
+  /** Map FastAPI 422 errors (loc = ["body", "recipients", i, "email"]) back onto the form. */
+  function showValidationErrors(detail, recipients) {
+    if (!Array.isArray(detail)) return showFormMessage("error", String(detail));
+    const messages = detail.map((error) => {
+      const [, field, index, subField] = error.loc ?? [];
+      if (field === "recipients" && Number.isInteger(index)) {
+        const row = recipients[index]?.row;
+        const input = row?.querySelector(`[data-field="${subField}"]`);
+        input?.classList.add("invalid");
+        const rowNumber = row ? [...tbody.rows].indexOf(row) + 1 : index + 1;
+        return `Row ${rowNumber} ${String(subField ?? "").replace("_", " ")}: ${error.msg}`;
+      }
+      $(field)?.classList.add("invalid");
+      return `${String(field ?? "request").replace("_", " ")}: ${error.msg}`;
+    });
+    showFormMessage("error", "Please fix the following:", messages);
+  }
+
+  $("job-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    clearFieldErrors();
+    const recipients = readRecipients();
+    const payload = {
+      event_name: $("event_name").value.trim(),
+      organization_name: $("organization_name").value.trim(),
+      issue_date: $("issue_date").value,
+      recipients: recipients.map((r) => r.data),
+    };
+    const button = $("submit-btn");
+    button.disabled = true;
+    button.textContent = "Submitting…";
+    try {
+      const created = await api(JOBS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      showFormMessage("ok", `Job accepted: ${created.total_recipients} certificate${created.total_recipients === 1 ? "" : "s"} queued. Tracking progress on the right.`);
+      trackJob(created.job_id);
+    } catch (error) {
+      if (error.status === 422) showValidationErrors(error.detail, recipients);
+      else showFormMessage("error", typeof error.detail === "string" ? error.detail : "Request failed.");
+    } finally {
+      button.disabled = false;
+      button.textContent = "Generate certificates";
+    }
+  });
+
+  // ---------- Job tracking ----------
+  let trackedJobId = null;
+  let pollTimer = null;
+
+  function trackJob(jobId) {
+    jobId = jobId.trim();
+    if (!jobId) return;
+    clearTimeout(pollTimer);
+    trackedJobId = jobId;
+    $("track-id").value = jobId;
+    storage.set("lastJobId", jobId);
+    history.replaceState(null, "", `#job=${encodeURIComponent(jobId)}`);
+    $("job-view").replaceChildren(el("div", { class: "empty", text: "Loading job…" }));
+    poll(jobId);
+  }
+
+  async function poll(jobId) {
+    try {
+      const job = await api(`${JOBS_URL}/${encodeURIComponent(jobId)}`);
+      if (jobId !== trackedJobId) return;
+      renderJob(job);
+      const finished = FINAL_STATUSES.has(job.status);
+      if (!finished) pollTimer = setTimeout(() => poll(jobId), POLL_MS);
+    } catch (error) {
+      if (jobId !== trackedJobId) return;
+      if (error.status === 404) {
+        $("job-view").replaceChildren(el("div", { class: "alert error", text: `No job found with ID ${jobId}.` }));
+      } else {
+        $("job-view").replaceChildren(el("div", { class: "alert warn", text: `${error.detail} Retrying…` }));
+        pollTimer = setTimeout(() => poll(jobId), POLL_MS * 3);
+      }
+    }
+  }
+
+  function renderJob(job) {
+    const done = job.successful_count + job.failed_count;
+    const total = job.total_recipients || 1;
+    const finished = FINAL_STATUSES.has(job.status);
+    const successes = job.recipients.filter((r) => r.status === "SUCCESS");
+
+    const stat = (value, label, cls = "") => el("div", { class: `stat ${cls}` }, el("div", { class: "v", text: value }), el("div", { class: "k", text: label }));
+
+    const rows = job.recipients.map((r, index) => el("tr", {},
+      el("td", { class: "num", text: index + 1 }),
+      el("td", {}, el("div", { text: r.name }), el("div", { class: "email", text: r.email })),
+      el("td", { text: r.course_name }),
+      el("td", {}, badge(r.status)),
+      el("td", {},
+        r.download_url
+          ? el("a", { class: "download", href: r.download_url, download: "", text: "Download PDF" })
+          : r.error_message
+            ? el("span", { class: "err-text", text: r.error_message })
+            : el("span", { class: "email", text: r.status === "PROCESSING" ? "Generating…" : "Waiting…" })),
+    ));
+
+    $("job-view").replaceChildren(...[
+      el("div", { class: "job-head" }, el("h3", { text: job.event_name }), badge(job.status)),
+      el("div", { class: "job-meta" },
+        `${job.organization_name} · Issued ${job.issue_date} · Created ${formatTime(job.created_at)}`,
+        job.completed_at ? ` · Finished ${formatTime(job.completed_at)}` : "",
+        el("br"), "Job ID: ", el("code", { text: job.job_id }),
+        " ", el("button", { type: "button", class: "link", text: "Copy", onclick: (e) => copyText(job.job_id, e.target) })),
+      el("div", { class: "progress", role: "progressbar", "aria-valuemin": 0, "aria-valuemax": 100, "aria-valuenow": job.progress_percentage },
+        el("div", { class: "bar-ok", style: `width:${(job.successful_count / total) * 100}%` }),
+        el("div", { class: "bar-err", style: `width:${(job.failed_count / total) * 100}%` })),
+      el("div", { class: "progress-label" },
+        el("span", { text: `${done} of ${job.total_recipients} processed` }),
+        el("span", { text: `${job.progress_percentage}%` })),
+      el("div", { class: "stats" },
+        stat(job.total_recipients, "Total"),
+        stat(job.successful_count, "Succeeded", "ok"),
+        stat(job.failed_count, "Failed", job.failed_count ? "err" : ""),
+        stat(job.processing_count, "Processing", "info"),
+        stat(job.pending_count, "Pending")),
+      el("div", { class: "job-actions" },
+        el("button", { type: "button", class: "primary", disabled: !successes.length, text: `Download all (${successes.length})`,
+          onclick: (e) => downloadAll(successes, e.target) }),
+        el("span", { class: "polling", text: finished ? "Job finished." : "Updating every second…" })),
+      job.status === "FAILED"
+        ? el("div", { class: "alert error", style: "margin:0 0 12px", text: "The job stopped because of a server-side error. Recipients that were not processed are marked as failed." })
+        : null,
+      el("div", { class: "table-wrap scroll" },
+        el("table", {}, el("thead", {}, el("tr", {}, ["#", "Recipient", "Course", "Status", "Certificate"].map((h) => el("th", { text: h })))),
+          el("tbody", {}, rows))),
+    ].filter(Boolean));
+  }
+
+  async function downloadAll(recipients, button) {
+    button.disabled = true;
+    for (const [index, recipient] of recipients.entries()) {
+      button.textContent = `Downloading ${index + 1}/${recipients.length}…`;
+      const link = el("a", { href: recipient.download_url, download: "" });
+      document.body.append(link);
+      link.click();
+      link.remove();
+      // Brief pause so the browser doesn't collapse rapid downloads.
+      await new Promise((resolve) => setTimeout(resolve, 350));
+    }
+    button.textContent = `Download all (${recipients.length})`;
+    button.disabled = false;
+  }
+
+  async function copyText(text, button) {
+    try {
+      await navigator.clipboard.writeText(text);
+      button.textContent = "Copied";
+    } catch {
+      button.textContent = "Copy failed";
+    }
+    setTimeout(() => { button.textContent = "Copy"; }, 1500);
+  }
+
+  $("track-form").addEventListener("submit", (event) => { event.preventDefault(); trackJob($("track-id").value); });
+
+  // ---------- Init ----------
+  $("issue_date").value = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  addRecipientRow();
+  resolveApiBase().then((base) => {
+    API_BASE = base;
+    JOBS_URL = `${API_BASE}/api/v1/certificate-jobs`;
+    if (API_BASE) document.querySelector('header a[href="/docs"]').href = `${API_BASE}/docs`;
+    checkHealth();
+    const hashJob = new URLSearchParams(location.hash.slice(1)).get("job");
+    const resumeJob = hashJob || storage.get("lastJobId");
+    if (resumeJob) trackJob(resumeJob);
+  });
+})();
+</script>
+</body>
+</html>

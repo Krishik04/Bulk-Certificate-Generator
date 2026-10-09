@@ -1,0 +1,17 @@
+{
+  // Live Server reloads the page whenever a workspace file changes. The API writes its
+  // database and generated PDFs inside the project, so ignore them to stop the web UI
+  // from reloading (and clearing the form) every time a job runs.
+  "liveServer.settings.ignoreFiles": [
+    ".vscode/**",
+    "**/*.scss",
+    "**/*.sass",
+    "**/*.ts",
+    "**/*.db",
+    "**/*.db-journal",
+    "**/generated_certificates/**",
+    "**/.venv/**",
+    "**/__pycache__/**",
+    "**/.pytest_cache/**"
+  ]
+}
